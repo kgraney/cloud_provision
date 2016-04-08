@@ -139,6 +139,18 @@ func (c *AmiCreator) CreateSecurityGroup() *string {
 	}
 
 	log.Info("Created security group ", *sgOutput.GroupId)
+
+	_, err = c.ec2.AuthorizeSecurityGroupIngress(&ec2.AuthorizeSecurityGroupIngressInput{
+		CidrIp:     aws.String("0.0.0.0/0"),
+		FromPort:   aws.Int64(0),
+		ToPort:     aws.Int64(65535),
+		IpProtocol: aws.String("-1"),
+		GroupId:    sgOutput.GroupId,
+	})
+	if err != nil {
+		c.LogFatal(err)
+	}
+
 	c.RecordResource(sgOutput.GroupId, &c.resources.SecurityGroupId)
 	return sgOutput.GroupId
 }
