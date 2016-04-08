@@ -19,8 +19,9 @@ type AmiCreator struct {
 	VpcId     string
 	SubnetId  string
 
-	resources Resources
-	svc       *ec2.EC2
+	resources      Resources
+	svc            *ec2.EC2
+	copierInstance *instance
 }
 
 type Resources struct {
@@ -56,14 +57,11 @@ func (c *AmiCreator) RecordResource(resourceId *string, target *string) {
 func (c *AmiCreator) Cleanup() {
 	log.Info("Cleaning up resources..")
 
-	log.Info("Terminating instance ", c.resources.CopierInstanceId)
-	c.svc.TerminateInstances(&ec2.TerminateInstancesInput{
-		InstanceIds: []*string{aws.String(c.resources.CopierInstanceId)},
-	})
-
-	c.svc.WaitUntilInstanceTerminated(&ec2.DescribeInstancesInput{
-		InstanceIds: []*string{aws.String(c.resources.CopierInstanceId)},
-	})
+	if c.copierInstance != nil {
+		log.Info("Terminating instance ", c.resources.CopierInstanceId)
+		c.copierInstance.Terminate()
+		c.copierInstance.WaitUntilTerminated()
+	}
 
 	log.Info("Deleting security group ", c.resources.SecurityGroupId)
 	c.svc.DeleteSecurityGroup(&ec2.DeleteSecurityGroupInput{
@@ -113,23 +111,15 @@ func (c *AmiCreator) Create() {
 	awsConfig := aws.NewConfig().WithRegion("us-east-1")
 	awsSession := session.New(awsConfig)
 
-	copierInstanceTerminated := make(chan bool)
-
 	c.svc = ec2.New(awsSession)
 	c.CreateSecurityGroup()
-	c.CreateInstance()
-	go c.StreamConsole(&c.resources.CopierInstanceId, copierInstanceTerminated)
 
-	log.Info("Waiting for copier instance to be running")
-	c.svc.WaitUntilInstanceRunning(&ec2.DescribeInstancesInput{
-		InstanceIds: []*string{aws.String(c.resources.CopierInstanceId)},
-	})
+	c.copierInstance = c.CreateInstance()
+	c.copierInstance.WaitUntilRunning()
 
 	log.Info("Waiting just because")
 	time.Sleep(120 * time.Second)
 	c.Cleanup()
-
-	copierInstanceTerminated <- true
 }
 
 func (c *AmiCreator) CreateSecurityGroup() *string {
@@ -150,8 +140,8 @@ func (c *AmiCreator) CreateSecurityGroup() *string {
 	return sgOutput.GroupId
 }
 
-func (c *AmiCreator) CreateInstance() {
-	runResult, err := c.svc.RunInstances(&ec2.RunInstancesInput{
+func (c *AmiCreator) CreateInstance() *instance {
+	instance := NewInstance(c.svc, &ec2.RunInstancesInput{
 		ImageId:          aws.String("ami-fce3c696"), // Ubuntu
 		InstanceType:     aws.String("t2.micro"),
 		MinCount:         aws.Int64(1),
@@ -178,15 +168,17 @@ func (c *AmiCreator) CreateInstance() {
 			}},
 	})
 
+	instanceId, err := instance.Start()
 	if err != nil {
 		c.LogFatal("Could not create instance ", err)
-		return
+		return nil
 	}
-	c.RecordResource(runResult.Instances[0].InstanceId, &c.resources.CopierInstanceId)
+	c.RecordResource(instanceId, &c.resources.CopierInstanceId)
 
 	result, _ := c.svc.DescribeInstanceAttribute(&ec2.DescribeInstanceAttributeInput{
 		Attribute:  aws.String("blockDeviceMapping"),
 		InstanceId: aws.String(c.resources.CopierInstanceId),
 	})
 	log.Info(result.BlockDeviceMappings)
+	return instance
 }
