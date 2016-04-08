@@ -120,6 +120,9 @@ func (c *AmiCreator) Create() {
 	copierIp := c.copierInstance.PrivateIp()
 	log.Info("Copier instance is at ", *copierIp)
 
+	log.Info("Trying to run a command ", *copierIp)
+	c.copierInstance.RunSshCommand("ls /")
+
 	log.Info("Waiting just because")
 	time.Sleep(120 * time.Second)
 	c.Cleanup()
