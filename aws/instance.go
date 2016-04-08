@@ -5,6 +5,7 @@ import (
 	"time"
 
 	log "github.com/Sirupsen/logrus"
+	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
 )
 
@@ -29,7 +30,7 @@ func NewInstance(service *ec2.EC2, input *ec2.RunInstancesInput) *instance {
 
 func (i *instance) Start() (*string, error) {
 	// TODO(kmg): assert that only one instance is being launched
-	i.logger.Info("Starting an instance from AMI ", i.runInstancesInput.ImageId)
+	i.logger.Info("Starting an instance from AMI ", *i.runInstancesInput.ImageId)
 	result, err := i.ec2.RunInstances(i.runInstancesInput)
 	if err != nil {
 		return nil, err
@@ -56,6 +57,11 @@ func (i *instance) Terminate() {
 	i.ec2.TerminateInstances(&ec2.TerminateInstancesInput{
 		InstanceIds: []*string{i.instanceId},
 	})
+}
+
+func (i *instance) PrivateIp() *string {
+	instance, _ := i.describeInstance()
+	return instance.PrivateIpAddress
 }
 
 func (i *instance) Forget() {
@@ -94,4 +100,18 @@ func (i *instance) StreamConsole() {
 			time.Sleep(2 * time.Second)
 		}
 	}
+}
+
+func (i *instance) describeInstance() (*ec2.Instance, error) {
+	i.logger.Info("Describing instance")
+
+	result, err := i.ec2.DescribeInstances(&ec2.DescribeInstancesInput{
+		Filters: []*ec2.Filter{&ec2.Filter{
+			Name:   aws.String("instance-id"),
+			Values: []*string{i.instanceId},
+		},
+		},
+	})
+
+	return result.Reservations[0].Instances[0], err
 }
