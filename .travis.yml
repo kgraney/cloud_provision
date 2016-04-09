@@ -9,3 +9,4 @@ install:
     - go get github.com/codegangsta/cli
     - go get github.com/Sirupsen/logrus
     - go get github.com/stretchr/testify/assert
+    - go get golang.org/x/crypto/ssh
