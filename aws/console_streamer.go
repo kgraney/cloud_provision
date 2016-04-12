@@ -59,7 +59,6 @@ func DeduplicatedLogStream(previous, current string) string {
 		return current
 	}
 	for i := 1; i <= len(previous); i++ {
-		fmt.Printf("%d -- %s -- %s\n", i, previous[len(previous)-i:], current[:i])
 		if previous[len(previous)-i:] == current[:i] {
 			return current[i:]
 		}

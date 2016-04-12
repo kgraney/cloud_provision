@@ -26,6 +26,10 @@ func TestDeduplicateBufferStream(t *testing.T) {
 		Previous: "abcd",
 		Current:  "",
 		Expected: "",
+	}, {
+		Previous: "abcd",
+		Current:  "efgh",
+		Expected: "efgh",
 	}}
 
 	for _, tc := range testCases {
