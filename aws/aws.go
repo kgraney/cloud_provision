@@ -56,6 +56,23 @@ func (p AwsProvider) GetCommands() []cli.Command {
 					creator.Create()
 				},
 			},
+			{
+				Name:  "stream-console",
+				Usage: "Stream a EC2 instance console",
+				Flags: []cli.Flag{
+					cli.StringFlag{
+						Name:  "instance-id",
+						Usage: "The instance to stream the console from",
+						Value: "",
+					},
+				},
+				Action: func(c *cli.Context) {
+					streamer := ConsoleStreamer{
+						InstanceId: c.String("instance-id"),
+					}
+					streamer.Run()
+				},
+			},
 		},
 	}}
 }
