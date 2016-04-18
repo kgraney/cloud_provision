@@ -51,8 +51,7 @@ func (e *taskExecutor) executeTask(task Task) {
 }
 
 func (e *taskExecutor) ExecuteTasks(tasks []Task, artifacts []Artifact) {
-
-	for _, task := range tasks {
+	for _, task := range TopologicalSort(tasks) {
 		e.executeTask(task)
 	}
 }
@@ -97,6 +96,7 @@ func HasIncomingEdges(name string, adj map[string]([]string)) bool {
 func TopologicalSort(tasks []Task) []Task {
 	order := topologicalSort(tasks)
 
+	// Convert the list of task/artifact names into a list of task objects
 	m := make(map[string]Task)
 	for _, t := range tasks {
 		m[t.Name] = t
@@ -104,12 +104,15 @@ func TopologicalSort(tasks []Task) []Task {
 
 	lst := []Task{}
 	for _, s := range order {
-		lst = append(lst, m[s])
+		if task, ok := m[s]; ok {
+			lst = append(lst, task)
+		}
 	}
 
 	return lst
 }
 
+// Finds a topological ordering of task AND artifact names
 func topologicalSort(tasks []Task) []string {
 	adjLst := BuildAdjacencyList(tasks)
 

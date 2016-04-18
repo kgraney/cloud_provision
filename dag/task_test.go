@@ -74,12 +74,18 @@ func TestHasIncomingEdges(t *testing.T) {
 	assert.Equal(t, true, HasIncomingEdges("o2", adj))
 }
 
-func TestToplogicalSort(t *testing.T) {
+func TestToplogicalSortDiamond(t *testing.T) {
 	lst := TopologicalSort(diamondGraph)
-	assert.Equal(t, 4, len(lst))
+	assert.Equal(t, 2, len(lst))
 	assert.Equal(t, "t1", lst[0].Name)
-	assert.Equal(t, "t2", lst[3].Name)
+	assert.Equal(t, "t2", lst[1].Name)
+}
 
+func TestToplogicalSortLinear(t *testing.T) {
+	lst := TopologicalSort(linearGraph)
+	assert.Equal(t, 2, len(lst))
+	assert.Equal(t, "t1", lst[0].Name)
+	assert.Equal(t, "t2", lst[1].Name)
 }
 
 func TestExecuteTasks(*testing.T) {
