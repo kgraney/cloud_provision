@@ -1,10 +1,12 @@
 package dag
 
 import (
+	logtest "github.com/Sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/assert"
 	"testing"
-	//log "github.com/Sirupsen/logrus"
 )
+
+var logger, loghook = logtest.NewNullLogger()
 
 var linearGraph = []Task{
 	{
@@ -12,7 +14,7 @@ var linearGraph = []Task{
 		Provides: []string{"o1"},
 		Action: func(map[string]interface{}) ([]Artifact, error) {
 			return []Artifact{
-				{Name: "o1", Value: "foobar"},
+				{Name: "o1", Value: "foobar1"},
 			}, nil
 		},
 	},
@@ -20,7 +22,8 @@ var linearGraph = []Task{
 		Name:     "t2",
 		Provides: []string{"o2"},
 		Consumes: []string{"o1"},
-		Action: func(map[string]interface{}) ([]Artifact, error) {
+		Action: func(input map[string]interface{}) ([]Artifact, error) {
+			logger.Info("The value of o1 in t2 is ", input["o1"])
 			return []Artifact{
 				{Name: "o2", Value: "foobar2"},
 			}, nil
@@ -42,7 +45,9 @@ var diamondGraph = []Task{
 	{
 		Name:     "t2",
 		Consumes: []string{"o1", "o2"},
-		Action: func(map[string]interface{}) ([]Artifact, error) {
+		Action: func(input map[string]interface{}) ([]Artifact, error) {
+			logger.Info("The value of o1 in t2 is ", input["o1"])
+			logger.Info("The value of o2 in t2 is ", input["o2"])
 			return []Artifact{}, nil
 		},
 	},
@@ -88,8 +93,22 @@ func TestToplogicalSortLinear(t *testing.T) {
 	assert.Equal(t, "t2", lst[1].Name)
 }
 
-func TestExecuteTasks(*testing.T) {
+func TestExecuteLinearTasks(t *testing.T) {
+	loghook.Reset()
 	executor := NewTaskExecutor()
 	executor.ExecuteTasks(linearGraph, nil)
+	assert.Equal(t, 1, len(loghook.Entries))
+	assert.Equal(t, "The value of o1 in t2 is foobar1",
+		loghook.LastEntry().Message)
+	executor.LogArtifacts()
+}
+
+func TestExecuteDiamondTasks(t *testing.T) {
+	loghook.Reset()
+	executor := NewTaskExecutor()
+	executor.ExecuteTasks(diamondGraph, nil)
+	assert.Equal(t, 2, len(loghook.Entries))
+	assert.Equal(t, "The value of o2 in t2 is foobar2",
+		loghook.LastEntry().Message)
 	executor.LogArtifacts()
 }
