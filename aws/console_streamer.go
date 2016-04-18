@@ -38,6 +38,7 @@ func (s ConsoleStreamer) Run() {
 			})
 			if err != nil {
 				instanceLogger.Warning("Error getting console output: ", err)
+				return
 			}
 			if lastConsoleUpdate != *resp.Timestamp {
 				lastConsoleUpdate = *resp.Timestamp
